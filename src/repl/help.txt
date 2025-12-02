@@ -1,0 +1,39 @@
+COMMANDS
+    read <seek> [count]
+        Read `count` number of bytes from the position specified by `seek`.
+        If `count` is omitted, read to the end of the file.
+
+    write <seek> <contents>
+        Write the given text in `contents` to the file from the position
+        specified by `seek`. `contents` can contain whitespace only after the
+        first non-whitespace character.
+
+    seek <seek>
+        Move the file pointer to the position specified by `seek`.
+
+    help
+        View this help menu.
+
+    quit
+        Quit the program.
+
+SEEK
+    The following syntaxes are allowed for commands with a `seek` argument.
+
+    .
+        Keep file pointer at its current position.
+
+    number      (e.g. 9)
+        Move to the `number`th position from the beginning of the file.
+
+    +number     (e.g. +10)
+        Move forward `number` bytes from the current position. It is possible
+        to seek beyond the end of a file.
+
+    -number     (e.g. -2)
+        Move backwards `number` bytes from the current position. Seeking
+        to a position before byte 0 is an error.
+
+    [number]<   (e.g. 40< , <)
+        Move to the `number`'th byte from the end of the file. If `number` is
+        omitted, move to the end of the file.
