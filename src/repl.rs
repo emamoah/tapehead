@@ -89,9 +89,15 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                 }
             }
             Read { seek, count } => {
-                if let Err(e) = handle_read(seek, count, &mut file, &mut buffer, &mut read_count) {
-                    error(e);
-                    continue;
+                match file
+                    .seek(seek)
+                    .and_then(|_| read_to_buffer(&mut file, &mut buffer, count))
+                {
+                    Err(e) => {
+                        error(e);
+                        continue;
+                    }
+                    Ok(count) => read_count = count,
                 }
 
                 // Print contents.
@@ -121,49 +127,44 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
     Ok(())
 }
 
-fn handle_read(
-    seek: io::SeekFrom,
-    count: Option<usize>,
+fn read_to_buffer(
     file: &mut File,
     buffer: &mut Vec<u8>,
-    read_count: &mut usize,
-) -> Result<(), Box<dyn Error>> {
+    count: Option<usize>,
+) -> io::Result<usize> {
     buffer.clear();
 
-    file.seek(seek)?;
-
-    if let Some(mut count) = count {
-        // Count arg is present.
-
-        if count > buffer.capacity() {
-            buffer.try_reserve(count)?
-        }
-
-        buffer.resize(count, 0);
-
-        let old_pos = file.stream_position()?;
-        if let Err(e) = file.read_exact(buffer) {
-            if e.kind() == io::ErrorKind::UnexpectedEof {
-                // Couldn't read up to given count. Infer read count from pos difference.
-                let inferred_count = (file.stream_position()? - old_pos) as usize;
-
-                buffer.truncate(inferred_count);
-
-                count = inferred_count;
-            } else {
-                return Err(e.into());
-            }
-        }
-
-        *read_count = count;
-    } else {
+    let Some(count) = count else {
         // No count arg. Read until end.
 
         let their_count = file.read_to_end(buffer)?;
-        *read_count = their_count;
+        return Ok(their_count);
+    };
+    // Count arg is present.
+
+    if count > buffer.capacity() {
+        buffer.try_reserve(count)?
     }
 
-    Ok(())
+    buffer.resize(count, 0);
+
+    let old_pos = file.stream_position()?;
+    let Err(error) = file.read_exact(buffer) else {
+        // Read successful.
+        return Ok(count);
+    };
+    // Couldn't read exact.
+
+    if error.kind() != io::ErrorKind::UnexpectedEof {
+        return Err(error.into());
+    }
+    // Read less than `count`. Infer actual from pos difference.
+
+    let inferred_count = (file.stream_position()? - old_pos) as usize;
+
+    buffer.truncate(inferred_count);
+
+    return Ok(inferred_count);
 }
 
 fn error(e: impl Into<Box<dyn Error>>) {
