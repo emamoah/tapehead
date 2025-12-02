@@ -16,6 +16,14 @@ pub enum Command {
     Nop,
 }
 
+impl Command {
+    const OP_READ: &[u8] = b"read";
+    const OP_WRITE: &[u8] = b"write";
+    const OP_SEEK: &[u8] = b"seek";
+    const OP_HELP: &[u8] = b"help";
+    const OP_QUIT: &[u8] = b"quit";
+}
+
 pub fn parse_input(input: &[u8]) -> Option<Command> {
     if input.len() == 0 {
         return Some(Command::Nop);
@@ -29,11 +37,11 @@ pub fn parse_input(input: &[u8]) -> Option<Command> {
     let op = input_words.next()?;
 
     match op.to_ascii_lowercase().as_slice() {
-        b"read" => parse_read_command(input_words),
-        b"write" => parse_write_command(input_words, input),
-        b"seek" => parse_seek_command(input_words),
-        b"help" => Some(Command::Help),
-        b"quit" => Some(Command::Quit),
+        Command::OP_READ => parse_read_command(input_words),
+        Command::OP_WRITE => parse_write_command(input_words, input),
+        Command::OP_SEEK => parse_seek_command(input_words),
+        Command::OP_HELP => Some(Command::Help),
+        Command::OP_QUIT => Some(Command::Quit),
         _ => None,
     }
 }
@@ -59,7 +67,7 @@ fn parse_write_command<'a>(
     let seek_arg = args.next()?;
     let seek = parse_seek_arg(seek_arg)?;
 
-    let write_buf = command_line.trim_ascii_start()["write".len()..].trim_ascii_start()
+    let write_buf = command_line.trim_ascii_start()[Command::OP_WRITE.len()..].trim_ascii_start()
         [seek_arg.len()..]
         .trim_ascii_start();
     let write_buf_start = command_line.len() - write_buf.len();
@@ -107,7 +115,13 @@ mod tests {
 
     #[test]
     fn invalid_input_returns_none() {
-        let inputs: &[&[u8]] = &[b"\n", b" ", b"read", b"write", b"seek"];
+        let inputs: &[&[u8]] = &[
+            b"\n",
+            b" ",
+            Command::OP_READ,
+            Command::OP_WRITE,
+            Command::OP_SEEK,
+        ];
 
         for input in inputs {
             assert!(parse_input(input).is_none());
