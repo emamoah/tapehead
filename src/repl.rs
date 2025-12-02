@@ -6,7 +6,7 @@ use std::{
     io::{self, BufRead, Read, Seek, Write},
 };
 
-use crate::VERSION;
+use crate::{VERSION, repl::parser::Command};
 
 fn prologue() {
     eprintln!(
@@ -19,7 +19,7 @@ Enter \"help\" for more information.\n\n\n"
 }
 
 pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io::Result<()> {
-    use parser::Op::*;
+    use Command::*;
 
     let size = file.metadata()?.len();
     let unit = if size == 1 { "byte" } else { "bytes" };
@@ -79,17 +79,17 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             continue;
         };
 
-        match command.op {
-            NOP => continue,
-            QUIT => break,
-            HELP => help(),
-            SEEK => {
-                if let Err(e) = file.seek(command.seek) {
+        match command {
+            Nop => continue,
+            Quit => break,
+            Help => help(),
+            Seek(seek_from) => {
+                if let Err(e) = file.seek(seek_from) {
                     error(e);
                 }
             }
-            READ => {
-                if let Err(e) = handle_read(&command, &mut file, &mut buffer, &mut read_count) {
+            Read { seek, count } => {
+                if let Err(e) = handle_read(seek, count, &mut file, &mut buffer, &mut read_count) {
                     error(e);
                     continue;
                 }
@@ -102,22 +102,13 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                     eprintln!();
                 }
             }
-            WRITE => {
-                let Some(write_buf_start) = command.arg else {
-                    // error("Invalid state: write argument is `None`.");
-                    error("If you're seeing this in your output, I should be arrested.");
-                    continue;
-                };
-
-                let write_buf = &buffer[write_buf_start..];
+            Write { seek, index } => {
+                let write_buf = &buffer[index..];
                 if write_buf.len() == 0 {
                     continue;
                 }
 
-                match file
-                    .seek(command.seek)
-                    .and_then(|_| file.write_all(write_buf))
-                {
+                match file.seek(seek).and_then(|_| file.write_all(write_buf)) {
                     Err(e) => error(e),
                     Ok(_) => write_count = write_buf.len(),
                 }
@@ -131,16 +122,17 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
 }
 
 fn handle_read(
-    command: &parser::Command,
+    seek: io::SeekFrom,
+    count: Option<usize>,
     file: &mut File,
     buffer: &mut Vec<u8>,
     read_count: &mut usize,
 ) -> Result<(), Box<dyn Error>> {
     buffer.clear();
 
-    file.seek(command.seek)?;
+    file.seek(seek)?;
 
-    if let Some(mut count) = command.arg {
+    if let Some(mut count) = count {
         // Count arg is present.
 
         if count > buffer.capacity() {

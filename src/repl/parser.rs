@@ -1,74 +1,24 @@
 use std::io::SeekFrom;
 
 #[derive(Debug, PartialEq)]
-pub enum Op {
-    READ,
-    WRITE,
-    SEEK,
-    HELP,
-    QUIT,
-    NOP,
-}
-
-#[derive(Debug)]
-pub struct Command {
-    pub op: Op,
-    pub seek: SeekFrom,
-    /// Argument used for read/write operations. For write, it's the
-    /// position in the command input buffer where the data begins.
-    /// For read, it's the number of bytes to read. If value is `None`
-    /// in that case, read the rest of the file.
-    pub arg: Option<usize>,
-}
-
-impl Command {
-    /// Constructs a `Command` with the provided `op` and a default
-    /// for all other fields.
-    fn op(op: Op) -> Self {
-        Command {
-            op,
-            seek: SeekFrom::Current(0),
-            arg: None,
-        }
-    }
-
-    /// Constructs a `SEEK` `Command` with the provided `seek` and a
-    /// default for all other fields.
-    fn seek(seek: SeekFrom) -> Self {
-        Command {
-            op: Op::SEEK,
-            seek,
-            arg: None,
-        }
-    }
-
-    /// Constructs a `READ` `Command` with the given `seek` and the
-    /// number of bytes to read. If count is `None`, read the rest
-    /// of the file.
-    fn read(seek: SeekFrom, count: Option<usize>) -> Self {
-        Command {
-            op: Op::READ,
-            seek,
-            arg: count,
-        }
-    }
-
-    /// Constructs a `WRITE` `Command` with the given `seek` and the
-    /// offset from the command line where the data to write begins.
-    fn write(seek: SeekFrom, buf_start: usize) -> Self {
-        Command {
-            op: Op::WRITE,
-            seek,
-            arg: Some(buf_start),
-        }
-    }
+pub enum Command {
+    Read {
+        seek: SeekFrom,
+        count: Option<usize>,
+    },
+    Write {
+        seek: SeekFrom,
+        index: usize,
+    },
+    Seek(SeekFrom),
+    Help,
+    Quit,
+    Nop,
 }
 
 pub fn parse_input(input: &[u8]) -> Option<Command> {
-    use Op::*;
-
     if input.len() == 0 {
-        return Some(Command::op(NOP));
+        return Some(Command::Nop);
     }
 
     // Is there a better way? i.e. <&str>::split_whitespace, but for &[u8] ?
@@ -76,65 +26,83 @@ pub fn parse_input(input: &[u8]) -> Option<Command> {
         .split(u8::is_ascii_whitespace)
         .filter(|chunk| !chunk.is_empty());
 
-    let op_str = String::from_utf8_lossy(input_words.next()?);
-    let op = match op_str.to_lowercase().as_str() {
-        "read" => READ,
-        "write" => WRITE,
-        "seek" => SEEK,
-        "help" => return Some(Command::op(HELP)),
-        "quit" => return Some(Command::op(QUIT)),
-        _ => return None,
-    };
+    let op = input_words.next()?;
 
-    let seek_str = String::from_utf8_lossy(input_words.next()?);
+    match op.to_ascii_lowercase().as_slice() {
+        b"read" => parse_read_command(input_words),
+        b"write" => parse_write_command(input_words, input),
+        b"seek" => parse_seek_command(input_words),
+        b"help" => Some(Command::Help),
+        b"quit" => Some(Command::Quit),
+        _ => None,
+    }
+}
+
+fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
+    let seek = parse_seek_arg(args.next()?)?;
+
+    let read_count_str = args.next().map(String::from_utf8_lossy);
+    let read_count = match read_count_str {
+        None => None,
+        Some(c) => Some(c.parse::<usize>().ok()?),
+    };
+    Some(Command::Read {
+        seek,
+        count: read_count,
+    })
+}
+
+fn parse_write_command<'a>(
+    mut args: impl Iterator<Item = &'a [u8]>,
+    command_line: &[u8],
+) -> Option<Command> {
+    let seek_arg = args.next()?;
+    let seek = parse_seek_arg(seek_arg)?;
+
+    let write_buf = command_line.trim_ascii_start()["write".len()..].trim_ascii_start()
+        [seek_arg.len()..]
+        .trim_ascii_start();
+    let write_buf_start = command_line.len() - write_buf.len();
+    return Some(Command::Write {
+        seek,
+        index: write_buf_start,
+    });
+}
+
+fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
+    let seek = parse_seek_arg(args.next()?)?;
+    Some(Command::Seek(seek))
+}
+
+fn parse_seek_arg(word: &[u8]) -> Option<SeekFrom> {
+    let seek_str = String::from_utf8_lossy(word);
     if seek_str.is_empty() {
         return None;
     };
-    let seek = match seek_str.chars().next()? {
-        '.' if seek_str.len() == 1 => SeekFrom::Current(0),
-        '<' if seek_str.len() == 1 => SeekFrom::End(0),
-        '+' | '-' => SeekFrom::Current(seek_str.parse().ok()?),
+
+    match seek_str.chars().next()? {
+        '.' if seek_str.len() == 1 => Some(SeekFrom::Current(0)),
+        '<' if seek_str.len() == 1 => Some(SeekFrom::End(0)),
+        '+' | '-' => Some(SeekFrom::Current(seek_str.parse().ok()?)),
         '0'..='9' if seek_str.ends_with('<') => {
             let num: i64 = (&seek_str[..seek_str.len() - 1]).parse().ok()?;
-            SeekFrom::End(0 - num)
+            Some(SeekFrom::End(0 - num))
         }
-        '0'..='9' => SeekFrom::Start(seek_str.parse().ok()?),
-        _ => return None,
-    };
-
-    if let SEEK = op {
-        return Some(Command::seek(seek));
+        '0'..='9' => Some(SeekFrom::Start(seek_str.parse().ok()?)),
+        _ => None,
     }
-
-    if let READ = op {
-        let read_count_str = input_words.next().map(String::from_utf8_lossy);
-        let read_count = match read_count_str {
-            None => None,
-            Some(c) => Some(c.parse::<usize>().ok()?),
-        };
-        return Some(Command::read(seek, read_count));
-    }
-    if let WRITE = op {
-        let write_buf = input.trim_ascii_start()[op_str.len()..].trim_ascii_start()
-            [seek_str.len()..]
-            .trim_ascii_start();
-        let write_buf_start = input.len() - write_buf.len();
-        return Some(Command::write(seek, write_buf_start));
-    }
-
-    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Op::*;
+    use Command::*;
 
     #[test]
     fn empty_input_returns_nop_cmd() {
         let cmd = parse_input(b"").unwrap();
 
-        assert_eq!(cmd.op, NOP);
+        assert_eq!(cmd, Nop);
     }
 
     #[test]
@@ -159,19 +127,18 @@ mod tests {
     }
 
     #[test]
-    fn write_without_contents_returns_some_arg() {
-        let cmd = parse_input(b"write .").unwrap();
-
-        assert!(cmd.arg.is_some());
-    }
-
-    #[test]
     fn write_returns_correct_byte_position() {
         let input = b" \twrite \r. \x0c  x \n  ";
 
         let cmd = parse_input(input).unwrap();
 
-        assert_eq!(cmd.arg, Some(14));
+        assert_eq!(
+            cmd,
+            Write {
+                seek: SeekFrom::Current(0),
+                index: 14
+            }
+        );
     }
 
     #[test]
@@ -204,13 +171,13 @@ mod tests {
         let from_start_0 = parse_input(b"seek 0").unwrap();
         let from_start_1 = parse_input(b"seek 1").unwrap();
 
-        assert_eq!(dot.seek, SeekFrom::Current(0));
-        assert_eq!(forwards.seek, SeekFrom::Current(0));
-        assert_eq!(backwards.seek, SeekFrom::Current(0));
-        assert_eq!(from_end.seek, SeekFrom::End(0));
-        assert_eq!(from_end_0.seek, SeekFrom::End(0));
-        assert_eq!(from_end_1.seek, SeekFrom::End(-1));
-        assert_eq!(from_start_0.seek, SeekFrom::Start(0));
-        assert_eq!(from_start_1.seek, SeekFrom::Start(1));
+        assert_eq!(dot, Seek(SeekFrom::Current(0)));
+        assert_eq!(forwards, Seek(SeekFrom::Current(0)));
+        assert_eq!(backwards, Seek(SeekFrom::Current(0)));
+        assert_eq!(from_end, Seek(SeekFrom::End(0)));
+        assert_eq!(from_end_0, Seek(SeekFrom::End(0)));
+        assert_eq!(from_end_1, Seek(SeekFrom::End(-1)));
+        assert_eq!(from_start_0, Seek(SeekFrom::Start(0)));
+        assert_eq!(from_start_1, Seek(SeekFrom::Start(1)));
     }
 }
