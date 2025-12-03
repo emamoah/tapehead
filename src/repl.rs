@@ -6,16 +6,10 @@ use std::{
     io::{self, BufRead, Read, Seek, Write},
 };
 
-use crate::{VERSION, repl::parser::Command};
+use crate::{repl::parser::Command, strings};
 
 fn prologue() {
-    eprintln!(
-        "TapeHead v{VERSION}
-
-Author: Emmanuel Amoah (https://emamoah.com/)
-
-Enter \"help\" for more information.\n\n\n"
-    );
+    eprintln!("{}", *strings::PROLOGUE);
 }
 
 pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io::Result<()> {
@@ -77,7 +71,7 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
         let command = match parser::parse_input(&buffer) {
             Ok(command) => command,
             Err(e) => {
-                error(format!("{e} Enter \"help\" for usage."));
+                error(format!("{} {}", e, strings::ENTER_HELP_FOR_USAGE));
                 continue;
             }
         };
@@ -179,13 +173,5 @@ fn error(e: impl Into<Box<dyn Error>>) {
 }
 
 fn help() {
-    eprintln!(
-        "TapeHead v{}
-
-Visit https://github.com/emamoah/tapehead for official documentation.
-
-{}",
-        VERSION,
-        include_str!("repl/help.txt")
-    );
+    eprintln!("{}", *strings::HELP);
 }

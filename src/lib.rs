@@ -1,8 +1,7 @@
 pub mod repl;
+pub mod strings;
 
 use std::{env, path::Path, sync::LazyLock};
-
-pub const VERSION: &str = "0.1.0";
 
 pub const PROGNAME: LazyLock<String> = LazyLock::new(|| {
     let argv0 = env::args().next();

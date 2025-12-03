@@ -1,18 +1,13 @@
 use std::{env::args, error::Error, fs::File, io, process};
-use tapehead::{self, PROGNAME, VERSION, repl};
+use tapehead::{self, PROGNAME, repl, strings::VERSION};
 
 pub fn usage() {
-    let progname = &*PROGNAME;
-    eprintln!(
-        "TapeHead v{VERSION}
-
-Usage: {progname} <file>"
-    );
+    eprintln!("TapeHead v{}\n\nUsage: {} <file>", VERSION, *PROGNAME);
 }
 
 fn exit_with_error<T>(e: impl Error) -> T {
     let prefix = if !PROGNAME.is_empty() {
-        format!("{}: ", &*PROGNAME)
+        format!("{}: ", *PROGNAME)
     } else {
         format!("")
     };

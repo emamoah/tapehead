@@ -1,5 +1,7 @@
 use std::{error::Error, io::SeekFrom};
 
+use crate::strings;
+
 type ParseResult = Result<Command, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq)]
@@ -41,7 +43,7 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
         .split(u8::is_ascii_whitespace)
         .filter(|chunk| !chunk.is_empty());
 
-    let op = input_words.next().ok_or("Weird... Command not found.")?;
+    let op = input_words.next().ok_or(strings::WEIRD_COMMAND_NOT_FOUND)?;
 
     match op.to_ascii_lowercase().as_slice() {
         Command::OP_READ => parse_read_command(input_words),
@@ -50,12 +52,12 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
         Command::OP_SEEK => parse_seek_command(input_words),
         Command::OP_HELP => Ok(Command::Help),
         Command::OP_QUIT => Ok(Command::Quit),
-        _ => Err("Unrecognized command.")?,
+        _ => Err(strings::UNRECOGNIZED_COMMAND)?,
     }
 }
 
 fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
-    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
     let count_arg = args.next().map(String::from_utf8_lossy);
@@ -64,7 +66,7 @@ fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
         Some(c) => {
             let num = c
                 .parse::<usize>()
-                .map_err(|_| "Invalid digit in count argument")?;
+                .map_err(|_| strings::INVALID_DIGIT_IN_COUNT_ARG)?;
             Some(num)
         }
     };
@@ -75,7 +77,7 @@ fn parse_write_command<'a>(
     mut args: impl Iterator<Item = &'a [u8]>,
     command_line: &[u8],
 ) -> ParseResult {
-    let seek_arg = args.next().ok_or("Missing seek argument")?;
+    let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
     let write_buf = command_line.trim_ascii_start()[Command::OP_WRITE.len()..].trim_ascii_start()
@@ -89,7 +91,7 @@ fn parse_write_command<'a>(
 }
 
 fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
-    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
     let mut bytes: Vec<u8> = Vec::with_capacity(1024);
@@ -98,7 +100,7 @@ fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseRe
 
     for byte_arg in byte_args {
         // TODO: use u8::from_ascii_radix once stable
-        let byte = u8::from_str_radix(&byte_arg, 16).map_err(|_| "Invalid byte argument.")?;
+        let byte = u8::from_str_radix(&byte_arg, 16).map_err(|_| strings::INVALID_BYTE_ARG)?;
         bytes.push(byte);
     }
 
@@ -106,7 +108,7 @@ fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseRe
 }
 
 fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
-    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
     Ok(Command::Seek(seek))
 }
@@ -114,35 +116,35 @@ fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
 fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
     let seek_arg = String::from_utf8_lossy(word);
     if seek_arg.is_empty() {
-        Err("Missing seek argument.")?;
+        Err(strings::MISSING_SEEK_ARG)?;
     };
 
     let first_char = seek_arg
         .chars()
         .next()
-        .ok_or("Weird... Seek argument not found.")?;
+        .ok_or(strings::WEIRD_SEEK_ARG_NOT_FOUND)?;
     match first_char {
         '.' if seek_arg.len() == 1 => Ok(SeekFrom::Current(0)),
         '<' if seek_arg.len() == 1 => Ok(SeekFrom::End(0)),
         '+' | '-' => {
             let num = seek_arg
                 .parse()
-                .map_err(|_| "Invalid digit in seek argument.")?;
+                .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
             Ok(SeekFrom::Current(num))
         }
         '0'..='9' if seek_arg.ends_with('<') => {
             let num: i64 = (&seek_arg[..seek_arg.len() - 1])
                 .parse()
-                .map_err(|_| "Invalid digit in seek argument.")?;
+                .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
             Ok(SeekFrom::End(0 - num))
         }
         '0'..='9' => {
             let num = seek_arg
                 .parse()
-                .map_err(|_| "Invalid digit in seek argument.")?;
+                .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
             Ok(SeekFrom::Start(num))
         }
-        _ => Err("Invalid seek argument.")?,
+        _ => Err(strings::INVALID_SEEK_ARG)?,
     }
 }
 
