@@ -85,6 +85,9 @@ The following are the supported commands in the REPL, also accessible through th
 - `write <seek> <contents>`
   - Write the given text in `contents` to the file from the position specified by `seek`. `contents` can contain whitespace only after the first non-whitespace character.
 
+- `writeb <seek> <hex bytes>`
+  - Write the given raw bytes to the file. Bytes are written as space-separated hex values and are case-insensitive. e.g., `6C 6f 6C`.
+
 - `seek <seek>`
   - Move the file pointer to the position specified by `seek`.
 

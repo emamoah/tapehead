@@ -12,6 +12,10 @@ pub enum Command {
         seek: SeekFrom,
         index: usize,
     },
+    Writeb {
+        seek: SeekFrom,
+        bytes: Vec<u8>,
+    },
     Seek(SeekFrom),
     Help,
     Quit,
@@ -21,6 +25,7 @@ pub enum Command {
 impl Command {
     const OP_READ: &[u8] = b"read";
     const OP_WRITE: &[u8] = b"write";
+    const OP_WRITEB: &[u8] = b"writeb";
     const OP_SEEK: &[u8] = b"seek";
     const OP_HELP: &[u8] = b"help";
     const OP_QUIT: &[u8] = b"quit";
@@ -41,6 +46,7 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
     match op.to_ascii_lowercase().as_slice() {
         Command::OP_READ => parse_read_command(input_words),
         Command::OP_WRITE => parse_write_command(input_words, input),
+        Command::OP_WRITEB => parse_writeb_command(input_words),
         Command::OP_SEEK => parse_seek_command(input_words),
         Command::OP_HELP => Ok(Command::Help),
         Command::OP_QUIT => Ok(Command::Quit),
@@ -80,6 +86,23 @@ fn parse_write_command<'a>(
         seek,
         index: write_buf_start,
     })
+}
+
+fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek = parse_seek_arg(seek_arg)?;
+
+    let mut bytes: Vec<u8> = Vec::with_capacity(1024);
+
+    let byte_args = args.map(String::from_utf8_lossy);
+
+    for byte_arg in byte_args {
+        // TODO: use u8::from_ascii_radix once stable
+        let byte = u8::from_str_radix(&byte_arg, 16).map_err(|_| "Invalid byte argument.")?;
+        bytes.push(byte);
+    }
+
+    Ok(Command::Writeb { seek, bytes })
 }
 
 fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
@@ -215,5 +238,29 @@ mod tests {
         assert_eq!(from_end_1, Seek(SeekFrom::End(-1)));
         assert_eq!(from_start_0, Seek(SeekFrom::Start(0)));
         assert_eq!(from_start_1, Seek(SeekFrom::Start(1)));
+    }
+
+    #[test]
+    fn writeb_returns_correct_byte_vector() {
+        let input = b"writeb . 0  fF\t 00040";
+
+        let cmd = parse_input(input).unwrap();
+
+        assert_eq!(
+            cmd,
+            Command::Writeb {
+                seek: SeekFrom::Current(0),
+                bytes: vec![0, 0xff, 0x40]
+            }
+        )
+    }
+
+    #[test]
+    fn writeb_returns_err_for_invalid_bytes() {
+        let inputs: &[&[u8]] = &[b"writeb . g", b"writeb . 100", b"writeb . 40 41 100"];
+
+        for input in inputs {
+            assert!(parse_input(input).is_err());
+        }
     }
 }

@@ -122,6 +122,10 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                     Ok(_) => write_count = write_buf.len(),
                 }
             }
+            Writeb { seek, bytes } => match file.seek(seek).and_then(|_| file.write_all(&bytes)) {
+                Err(e) => error(e),
+                Ok(_) => write_count = bytes.len(),
+            },
         }
     }
 
