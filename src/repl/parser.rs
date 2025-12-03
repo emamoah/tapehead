@@ -1,4 +1,6 @@
-use std::io::SeekFrom;
+use std::{error::Error, io::SeekFrom};
+
+type ParseResult = Result<Command, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -24,9 +26,9 @@ impl Command {
     const OP_QUIT: &[u8] = b"quit";
 }
 
-pub fn parse_input(input: &[u8]) -> Option<Command> {
+pub fn parse_input(input: &[u8]) -> ParseResult {
     if input.len() == 0 {
-        return Some(Command::Nop);
+        return Ok(Command::Nop);
     }
 
     // Is there a better way? i.e. <&str>::split_whitespace, but for &[u8] ?
@@ -34,67 +36,90 @@ pub fn parse_input(input: &[u8]) -> Option<Command> {
         .split(u8::is_ascii_whitespace)
         .filter(|chunk| !chunk.is_empty());
 
-    let op = input_words.next()?;
+    let op = input_words.next().ok_or("Weird... Command not found.")?;
 
     match op.to_ascii_lowercase().as_slice() {
         Command::OP_READ => parse_read_command(input_words),
         Command::OP_WRITE => parse_write_command(input_words, input),
         Command::OP_SEEK => parse_seek_command(input_words),
-        Command::OP_HELP => Some(Command::Help),
-        Command::OP_QUIT => Some(Command::Quit),
-        _ => None,
+        Command::OP_HELP => Ok(Command::Help),
+        Command::OP_QUIT => Ok(Command::Quit),
+        _ => Err("Unrecognized command.")?,
     }
 }
 
-fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
-    let seek = parse_seek_arg(args.next()?)?;
+fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek = parse_seek_arg(seek_arg)?;
 
     let count_arg = args.next().map(String::from_utf8_lossy);
     let count = match count_arg {
         None => None,
-        Some(c) => Some(c.parse::<usize>().ok()?),
+        Some(c) => {
+            let num = c
+                .parse::<usize>()
+                .map_err(|_| "Invalid digit in count argument")?;
+            Some(num)
+        }
     };
-    Some(Command::Read { seek, count })
+    Ok(Command::Read { seek, count })
 }
 
 fn parse_write_command<'a>(
     mut args: impl Iterator<Item = &'a [u8]>,
     command_line: &[u8],
-) -> Option<Command> {
-    let seek_arg = args.next()?;
+) -> ParseResult {
+    let seek_arg = args.next().ok_or("Missing seek argument")?;
     let seek = parse_seek_arg(seek_arg)?;
 
     let write_buf = command_line.trim_ascii_start()[Command::OP_WRITE.len()..].trim_ascii_start()
         [seek_arg.len()..]
         .trim_ascii_start();
     let write_buf_start = command_line.len() - write_buf.len();
-    Some(Command::Write {
+    Ok(Command::Write {
         seek,
         index: write_buf_start,
     })
 }
 
-fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
-    let seek = parse_seek_arg(args.next()?)?;
-    Some(Command::Seek(seek))
+fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+    let seek_arg = args.next().ok_or("Missing seek argument.")?;
+    let seek = parse_seek_arg(seek_arg)?;
+    Ok(Command::Seek(seek))
 }
 
-fn parse_seek_arg(word: &[u8]) -> Option<SeekFrom> {
+fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
     let seek_arg = String::from_utf8_lossy(word);
     if seek_arg.is_empty() {
-        return None;
+        Err("Missing seek argument.")?;
     };
 
-    match seek_arg.chars().next()? {
-        '.' if seek_arg.len() == 1 => Some(SeekFrom::Current(0)),
-        '<' if seek_arg.len() == 1 => Some(SeekFrom::End(0)),
-        '+' | '-' => Some(SeekFrom::Current(seek_arg.parse().ok()?)),
-        '0'..='9' if seek_arg.ends_with('<') => {
-            let num: i64 = (&seek_arg[..seek_arg.len() - 1]).parse().ok()?;
-            Some(SeekFrom::End(0 - num))
+    let first_char = seek_arg
+        .chars()
+        .next()
+        .ok_or("Weird... Seek argument not found.")?;
+    match first_char {
+        '.' if seek_arg.len() == 1 => Ok(SeekFrom::Current(0)),
+        '<' if seek_arg.len() == 1 => Ok(SeekFrom::End(0)),
+        '+' | '-' => {
+            let num = seek_arg
+                .parse()
+                .map_err(|_| "Invalid digit in seek argument.")?;
+            Ok(SeekFrom::Current(num))
         }
-        '0'..='9' => Some(SeekFrom::Start(seek_arg.parse().ok()?)),
-        _ => None,
+        '0'..='9' if seek_arg.ends_with('<') => {
+            let num: i64 = (&seek_arg[..seek_arg.len() - 1])
+                .parse()
+                .map_err(|_| "Invalid digit in seek argument.")?;
+            Ok(SeekFrom::End(0 - num))
+        }
+        '0'..='9' => {
+            let num = seek_arg
+                .parse()
+                .map_err(|_| "Invalid digit in seek argument.")?;
+            Ok(SeekFrom::Start(num))
+        }
+        _ => Err("Invalid seek argument.")?,
     }
 }
 
@@ -111,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_input_returns_none() {
+    fn invalid_input_returns_err() {
         let inputs: &[&[u8]] = &[
             b"\n",
             b" ",
@@ -121,7 +146,7 @@ mod tests {
         ];
 
         for input in inputs {
-            assert!(parse_input(input).is_none());
+            assert!(parse_input(input).is_err());
         }
     }
 
@@ -133,7 +158,7 @@ mod tests {
         ];
 
         for input in inputs {
-            assert!(parse_input(input).is_some());
+            assert!(parse_input(input).is_ok());
         }
     }
 
@@ -153,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_numbers_returns_none() {
+    fn invalid_number_returns_err() {
         let inputs: &[&[u8]] = &[
             b"seek x",
             b"seek -1<",
@@ -167,7 +192,7 @@ mod tests {
         ];
 
         for input in inputs {
-            assert!(parse_input(input).is_none());
+            assert!(parse_input(input).is_err());
         }
     }
 

@@ -74,9 +74,12 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             eprintln!()
         }
 
-        let Some(command) = parser::parse_input(&buffer) else {
-            error("Invalid command. Enter \"help\" for usage.");
-            continue;
+        let command = match parser::parse_input(&buffer) {
+            Ok(command) => command,
+            Err(e) => {
+                error(format!("{e} Enter \"help\" for usage."));
+                continue;
+            }
         };
 
         match command {
