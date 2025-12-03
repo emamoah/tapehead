@@ -49,15 +49,12 @@ pub fn parse_input(input: &[u8]) -> Option<Command> {
 fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
     let seek = parse_seek_arg(args.next()?)?;
 
-    let read_count_str = args.next().map(String::from_utf8_lossy);
-    let read_count = match read_count_str {
+    let count_arg = args.next().map(String::from_utf8_lossy);
+    let count = match count_arg {
         None => None,
         Some(c) => Some(c.parse::<usize>().ok()?),
     };
-    Some(Command::Read {
-        seek,
-        count: read_count,
-    })
+    Some(Command::Read { seek, count })
 }
 
 fn parse_write_command<'a>(
@@ -71,10 +68,10 @@ fn parse_write_command<'a>(
         [seek_arg.len()..]
         .trim_ascii_start();
     let write_buf_start = command_line.len() - write_buf.len();
-    return Some(Command::Write {
+    Some(Command::Write {
         seek,
         index: write_buf_start,
-    });
+    })
 }
 
 fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Command> {
@@ -83,20 +80,20 @@ fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> Option<Co
 }
 
 fn parse_seek_arg(word: &[u8]) -> Option<SeekFrom> {
-    let seek_str = String::from_utf8_lossy(word);
-    if seek_str.is_empty() {
+    let seek_arg = String::from_utf8_lossy(word);
+    if seek_arg.is_empty() {
         return None;
     };
 
-    match seek_str.chars().next()? {
-        '.' if seek_str.len() == 1 => Some(SeekFrom::Current(0)),
-        '<' if seek_str.len() == 1 => Some(SeekFrom::End(0)),
-        '+' | '-' => Some(SeekFrom::Current(seek_str.parse().ok()?)),
-        '0'..='9' if seek_str.ends_with('<') => {
-            let num: i64 = (&seek_str[..seek_str.len() - 1]).parse().ok()?;
+    match seek_arg.chars().next()? {
+        '.' if seek_arg.len() == 1 => Some(SeekFrom::Current(0)),
+        '<' if seek_arg.len() == 1 => Some(SeekFrom::End(0)),
+        '+' | '-' => Some(SeekFrom::Current(seek_arg.parse().ok()?)),
+        '0'..='9' if seek_arg.ends_with('<') => {
+            let num: i64 = (&seek_arg[..seek_arg.len() - 1]).parse().ok()?;
             Some(SeekFrom::End(0 - num))
         }
-        '0'..='9' => Some(SeekFrom::Start(seek_str.parse().ok()?)),
+        '0'..='9' => Some(SeekFrom::Start(seek_arg.parse().ok()?)),
         _ => None,
     }
 }
