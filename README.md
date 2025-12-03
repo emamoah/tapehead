@@ -123,3 +123,4 @@ The following syntaxes are allowed for commands with a `seek` argument.
 - `read 0 10` - Read the first 10 bytes of the file.
 - `seek 5<` - Seek to the 5th-to-last byte of the file.
 - `write -5 hello` - Move backwards 5 bytes and write "hello".
+- `writeb 0 74 61 70 65 68 65 61 64 0a` - Write "tapehead" followed by a newline at the beginning of the file.
