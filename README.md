@@ -69,7 +69,7 @@ The permissions can be one of these three, detected automatically when opening t
 
 The prompt contains a combination of the following segments:
 
-- `pos:<number>` - Current position of the file pointer, always shown.
+- `pos:<number>` - Current position of the file pointer, always shown. If the stream is not seekable, it displays a `*` instead of a number.
 - `in:<number>` - Number of bytes read from the file after executing the previous command. Not shown if nothing was read.
 - `out:<number>` - Number of bytes written to the file after executing the previous command. Not shown if nothing was written.
 

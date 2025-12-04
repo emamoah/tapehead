@@ -3,7 +3,7 @@ mod parser;
 use std::{
     error::Error,
     fs::File,
-    io::{self, BufRead, Read, Seek, Write},
+    io::{self, BufRead, Read, Seek, SeekFrom, Write},
 };
 
 use crate::{repl::parser::Command, strings};
@@ -33,8 +33,8 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
     let mut write_count = 0usize;
 
     loop {
-        let pos = file.stream_position()?;
-        let pos_str = format!("pos:{pos}");
+        let pos = try_get_pos(&file);
+        let pos_str = format!("pos:{}", pos.map(|p| p.to_string()).unwrap_or("*".into()));
         let in_str = if read_count > 0 {
             format!("in:{read_count}, ")
         } else {
@@ -81,13 +81,12 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             Quit => break,
             Help => help(),
             Seek(seek_from) => {
-                if let Err(e) = file.seek(seek_from) {
+                if let Err(e) = try_seek(&file, seek_from) {
                     error(e);
                 }
             }
             Read { seek, count } => {
-                match file
-                    .seek(seek)
+                match try_seek(&file, seek)
                     .and_then(|_| read_to_buffer(&mut file, &mut buffer, count))
                 {
                     Err(e) => {
@@ -106,9 +105,9 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                 }
             }
             Readb { seek, count } => {
-                let mut start_pos = 0; // Valid *after* seeking.
+                let mut start_pos: Option<u64> = None;
 
-                match file.seek(seek).and_then(|new_pos| {
+                match try_seek(&file, seek).and_then(|new_pos| {
                     start_pos = new_pos;
                     read_to_buffer(&mut file, &mut buffer, count)
                 }) {
@@ -128,21 +127,41 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                     continue;
                 }
 
-                match file.seek(seek).and_then(|_| file.write_all(write_buf)) {
+                match try_seek(&file, seek).and_then(|_| file.write_all(write_buf)) {
                     Err(e) => error(e),
                     Ok(_) => write_count = write_buf.len(),
                 }
             }
-            Writeb { seek, bytes } => match file.seek(seek).and_then(|_| file.write_all(&bytes)) {
-                Err(e) => error(e),
-                Ok(_) => write_count = bytes.len(),
-            },
+            Writeb { seek, bytes } => {
+                match try_seek(&file, seek).and_then(|_| file.write_all(&bytes)) {
+                    Err(e) => error(e),
+                    Ok(_) => write_count = bytes.len(),
+                }
+            }
         }
     }
 
     file.flush()?;
 
     Ok(())
+}
+
+fn try_get_pos(mut file: &File) -> Option<u64> {
+    file.stream_position().ok()
+}
+
+fn try_seek(mut file: &File, seek: SeekFrom) -> io::Result<Option<u64>> {
+    if seek != SeekFrom::Current(0) {
+        return match file.seek(seek) {
+            Ok(new_pos) => Ok(Some(new_pos)),
+            Err(_) => Err(io::Error::other(strings::NOT_SEEKABLE_USE_DOT)),
+        };
+    }
+    // `seek` is `SeekFrom::Current(0)`.
+    match file.seek(seek) {
+        Ok(new_pos) => Ok(Some(new_pos)),
+        Err(_) => Ok(None),
+    }
 }
 
 fn read_to_buffer(
@@ -172,10 +191,11 @@ fn read_to_buffer(
     Ok(actual_count)
 }
 
-fn print_hexdump(from_pos: u64, buffer: &Vec<u8>) -> io::Result<()> {
+fn print_hexdump(from_pos: Option<u64>, buffer: &Vec<u8>) -> io::Result<()> {
     if buffer.len() == 0 {
         return Ok(());
     }
+    let from_pos = from_pos.unwrap_or(0);
     const COLUMNS: usize = 16; // Must be a multiple of 2.
 
     let mut output = Vec::<u8>::with_capacity(4096);

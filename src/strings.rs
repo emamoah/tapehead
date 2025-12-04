@@ -15,6 +15,7 @@ pub const HELP: LazyLock<String> = LazyLock::new(|| {
     )
 });
 
+pub const NOT_SEEKABLE_USE_DOT: &str = "File not seekable. Use `.` in seek argument.";
 pub const WEIRD_COMMAND_NOT_FOUND: &str = "Weird... Command not found.";
 pub const WEIRD_SEEK_ARG_NOT_FOUND: &str = "Weird... Seek argument not found.";
 pub const ENTER_HELP_FOR_USAGE: &str = "Enter \"help\" for usage.";
