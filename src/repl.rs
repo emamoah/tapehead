@@ -154,7 +154,6 @@ fn read_to_buffer(
 
     let Some(count) = count else {
         // No count arg. Read until end.
-
         let their_count = file.read_to_end(buffer)?;
         return Ok(their_count);
     };
@@ -166,23 +165,11 @@ fn read_to_buffer(
 
     buffer.resize(count, 0);
 
-    let old_pos = file.stream_position()?;
-    let Err(error) = file.read_exact(buffer) else {
-        // Read successful.
-        return Ok(count);
-    };
-    // Couldn't read exact.
+    let actual_count = file.read(buffer)?;
 
-    if error.kind() != io::ErrorKind::UnexpectedEof {
-        return Err(error.into());
-    }
-    // Read less than `count`. Infer actual from pos difference.
+    buffer.truncate(actual_count);
 
-    let inferred_count = (file.stream_position()? - old_pos) as usize;
-
-    buffer.truncate(inferred_count);
-
-    return Ok(inferred_count);
+    Ok(actual_count)
 }
 
 fn print_hexdump(from_pos: u64, buffer: &Vec<u8>) -> io::Result<()> {
