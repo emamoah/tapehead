@@ -24,3 +24,5 @@ pub const INVALID_DIGIT_IN_COUNT_ARG: &str = "Invalid digit in count argument.";
 pub const INVALID_BYTE_ARG: &str = "Invalid byte argument.";
 pub const INVALID_DIGIT_IN_SEEK_ARG: &str = "Invalid digit in seek argument.";
 pub const INVALID_SEEK_ARG: &str = "Invalid seek argument.";
+pub const INVALID_STATE_READ_RETURNED_WRONG_TYPE: &str =
+    "INVALID STATE: `read` parser returned a wrong type.";

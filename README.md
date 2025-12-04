@@ -82,6 +82,9 @@ The following are the supported commands in the REPL, also accessible through th
 - `read <seek> [count]`
   - Read `count` number of bytes from the position specified by `seek`. If `count` is omitted, read to the end of the file.
 
+- `readb <seek> [count]`
+  - Same as `read`, but prints the contents as a hex dump. Useful for examining raw bytes.
+
 - `write <seek> <contents>`
   - Write the given text in `contents` to the file from the position specified by `seek`. `contents` can contain whitespace only after the first non-whitespace character.
 

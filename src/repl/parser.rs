@@ -10,6 +10,10 @@ pub enum Command {
         seek: SeekFrom,
         count: Option<usize>,
     },
+    Readb {
+        seek: SeekFrom,
+        count: Option<usize>,
+    },
     Write {
         seek: SeekFrom,
         index: usize,
@@ -26,6 +30,7 @@ pub enum Command {
 
 impl Command {
     const OP_READ: &[u8] = b"read";
+    const OP_READB: &[u8] = b"readb";
     const OP_WRITE: &[u8] = b"write";
     const OP_WRITEB: &[u8] = b"writeb";
     const OP_SEEK: &[u8] = b"seek";
@@ -47,6 +52,7 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
 
     match op.to_ascii_lowercase().as_slice() {
         Command::OP_READ => parse_read_command(input_words),
+        Command::OP_READB => parse_readb_command(input_words),
         Command::OP_WRITE => parse_write_command(input_words, input),
         Command::OP_WRITEB => parse_writeb_command(input_words),
         Command::OP_SEEK => parse_seek_command(input_words),
@@ -71,6 +77,13 @@ fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
         }
     };
     Ok(Command::Read { seek, count })
+}
+
+fn parse_readb_command<'a>(args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+    let Command::Read { seek, count } = parse_read_command(args)? else {
+        panic!("{}", strings::INVALID_STATE_READ_RETURNED_WRONG_TYPE);
+    };
+    Ok(Command::Readb { seek, count })
 }
 
 fn parse_write_command<'a>(
