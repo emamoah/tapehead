@@ -1,4 +1,4 @@
-use std::{env::args, error::Error, fs::File, io, process};
+use std::{env::args, error::Error, fs::File, process};
 use tapehead::{self, PROGNAME, repl, strings::VERSION};
 
 pub fn usage() {
@@ -30,19 +30,13 @@ fn main() {
 fn try_open(file_path: &String) -> std::io::Result<(File, bool, bool)> {
     let (mut readable, mut writable) = (true, true);
     let mut file = File::options().read(true).write(true).open(&file_path);
-    if file
-        .as_ref()
-        .is_err_and(|e| e.kind() == io::ErrorKind::PermissionDenied)
-    {
+    if file.as_ref().is_err() {
         file = File::options().write(true).open(&file_path).and_then(|f| {
             readable = false;
             Ok(f)
         });
     }
-    if file
-        .as_ref()
-        .is_err_and(|e| e.kind() == io::ErrorKind::PermissionDenied)
-    {
+    if file.as_ref().is_err() {
         file = File::options().read(true).open(&file_path).and_then(|f| {
             writable = false;
             Ok(f)
