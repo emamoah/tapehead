@@ -202,17 +202,23 @@ mod tests {
 
     #[test]
     fn write_returns_correct_byte_position() {
-        let input = b" \twrite \r. \x0c  x \n  ";
+        let inputs: &[(&[u8], usize)] = &[
+            (b" \twrite \r. \x0c  x \n  ", 14),
+            (b"write . \t  ", 11),
+            (b"write .\n", 8),
+            (b"write .", 7),
+        ];
 
-        let cmd = parse_input(input).unwrap();
-
-        assert_eq!(
-            cmd,
-            Write {
-                seek: SeekFrom::Current(0),
-                index: 14
-            }
-        );
+        for input in inputs {
+            let cmd = parse_input(input.0).unwrap();
+            assert_eq!(
+                cmd,
+                Write {
+                    seek: SeekFrom::Current(0),
+                    index: input.1
+                }
+            );
+        }
     }
 
     #[test]
