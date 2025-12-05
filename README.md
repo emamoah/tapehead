@@ -17,17 +17,17 @@ hello
 
 The tool runs a REPL session in which you can run commands to read, write, and seek to any position within the file stream. It's quite useful for tasks like debugging a driver, or anything that has to do with file streams.
 
-## Motivation
-
-I wrote a shabby version of this when I was trying to debug my [scull driver](https://github.com/emamoah/scull-rs), which controls a simple virtual character device. I was amazed I couldn't find a tool that allowed me to *statefully* seek, read and write to a file, so I just improvised some code. After that, I thought it a good idea to rewrite it properly and publish it, in case someone else one day might need it too.
-
-The initial name I thought to give it was "seeker" (since seeking was the most important aspect) but there was already a crate with that name, so I came up with "TapeHead" which also characterises the tool's behaviour quite well.
-
 ## Installation
 
 ```shell
 cargo install --git https://github.com/emamoah/tapehead.git
 ```
+
+## Motivation
+
+I wrote a shabby version of this when I was trying to debug my [scull driver](https://github.com/emamoah/scull-rs), which controls a simple virtual character device. I was amazed I couldn't find a tool that allowed me to *statefully* seek, read and write to a file, so I just improvised some code. After that, I thought it a good idea to rewrite it properly and publish it, in case someone else one day might need it too.
+
+The initial name I thought to give it was "seeker" (since seeking was the most important aspect) but there was already a crate with that name, so I came up with "TapeHead" which also characterises the tool's behaviour quite well.
 
 ## Running
 
