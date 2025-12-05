@@ -15,6 +15,11 @@ hello
 [in:5, pos:14]> quit
 ```
 
+<details>
+  <summary>Screen recording demo</summary>
+  <img alt="TapeHead demo" src="https://raw.githubusercontent.com/emamoah/tapehead-media/main/demo.webp" />
+</details>
+
 The tool runs a REPL session in which you can run commands to read, write, and seek to any position within the file stream. It's quite useful for tasks like debugging a driver, or anything that has to do with file streams.
 
 ## Installation
