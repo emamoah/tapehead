@@ -93,10 +93,27 @@ fn parse_write_command<'a>(
     let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
-    let write_buf = command_line.trim_ascii_start()[Command::OP_WRITE.len()..].trim_ascii_start()
-        [seek_arg.len()..]
-        .trim_ascii_start();
-    let write_buf_start = command_line.len() - write_buf.len();
+    // Enumerate space-separated "words". Each whitespace character has two
+    // "words" on either side, which could be 0 length.
+    // E.g., "  write " => (0, b""), (1, b""), (2, b"write"), (3, b"")
+    //     After filter => (2, b"write")
+    let mut cmd_words = command_line
+        .split(u8::is_ascii_whitespace)
+        .enumerate()
+        .filter(|(_, chunk)| !chunk.is_empty());
+
+    // len(op + seek)
+    let op_n_seek_len = cmd_words
+        .by_ref()
+        .take(2)
+        .fold(0, |acc, (_, chunk)| acc + chunk.len());
+
+    // Char index of first valid character in write contents.
+    let write_buf_start = match cmd_words.next() {
+        Some((i, _)) => op_n_seek_len + i,
+        None => command_line.len(),
+    };
+
     Ok(Command::Write {
         seek,
         index: write_buf_start,
