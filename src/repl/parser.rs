@@ -39,7 +39,7 @@ impl Command {
 }
 
 pub fn parse_input(input: &[u8]) -> ParseResult {
-    if input.len() == 0 {
+    if input.is_empty() {
         return Ok(Command::Nop);
     }
 
@@ -163,7 +163,7 @@ fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
             Ok(SeekFrom::Current(num))
         }
         '0'..='9' if seek_arg.ends_with('<') => {
-            let num: i64 = (&seek_arg[..seek_arg.len() - 1])
+            let num: i64 = seek_arg[..seek_arg.len() - 1]
                 .parse()
                 .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
             Ok(SeekFrom::End(0 - num))

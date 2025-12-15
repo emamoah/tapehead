@@ -2,12 +2,12 @@ use std::sync::LazyLock;
 
 pub const VERSION: &str = "0.1.0";
 
-pub const PROLOGUE: LazyLock<String> = LazyLock::new(|| {
+pub static PROLOGUE: LazyLock<String> = LazyLock::new(|| {
     format!(
         "TapeHead v{VERSION}\n\nAuthor: Emmanuel Amoah (https://emamoah.com/)\n\nEnter \"help\" for more information.\n\n\n"
     )
 });
-pub const HELP: LazyLock<String> = LazyLock::new(|| {
+pub static HELP: LazyLock<String> = LazyLock::new(|| {
     format!(
         "TapeHead v{}\n\nVisit https://github.com/emamoah/tapehead for official documentation.\n\n{}",
         VERSION,

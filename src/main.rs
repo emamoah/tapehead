@@ -9,7 +9,7 @@ fn exit_with_error<T>(e: impl Error) -> T {
     let prefix = if !PROGNAME.is_empty() {
         format!("{}: ", *PROGNAME)
     } else {
-        format!("")
+        String::new()
     };
     eprintln!("{prefix}error: {e}");
     process::exit(1);
@@ -21,7 +21,7 @@ fn exit_with_usage<T>() -> T {
 }
 
 fn main() {
-    let file_path = args().skip(1).next().unwrap_or_else(exit_with_usage);
+    let file_path = args().nth(1).unwrap_or_else(exit_with_usage);
     let (file, readable, writable) = try_open(&file_path).unwrap_or_else(exit_with_error);
 
     repl::run(&file_path, file, readable, writable).unwrap_or_else(exit_with_error);
@@ -29,15 +29,15 @@ fn main() {
 
 fn try_open(file_path: &String) -> std::io::Result<(File, bool, bool)> {
     let (mut readable, mut writable) = (true, true);
-    let mut file = File::options().read(true).write(true).open(&file_path);
+    let mut file = File::options().read(true).write(true).open(file_path);
     if file.as_ref().is_err() {
-        file = File::options().write(true).open(&file_path).and_then(|f| {
+        file = File::options().write(true).open(file_path).and_then(|f| {
             readable = false;
             Ok(f)
         });
     }
     if file.as_ref().is_err() {
-        file = File::options().read(true).open(&file_path).and_then(|f| {
+        file = File::options().read(true).open(file_path).and_then(|f| {
             writable = false;
             Ok(f)
         });

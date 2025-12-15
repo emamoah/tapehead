@@ -38,12 +38,12 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
         let in_str = if read_count > 0 {
             format!("in:{read_count}, ")
         } else {
-            format!("")
+            String::new()
         };
         let out_str = if write_count > 0 {
             format!("out:{write_count}, ")
         } else {
-            format!("")
+            String::new()
         };
 
         eprint!("[{in_str}{out_str}{pos_str}]> ");
@@ -58,7 +58,7 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             error(e);
             continue;
         }
-        if buffer.len() == 0 {
+        if buffer.is_empty() {
             eprintln!();
             break;
         }
@@ -123,7 +123,7 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             }
             Write { seek, index } => {
                 let write_buf = &buffer[index..];
-                if write_buf.len() == 0 {
+                if write_buf.is_empty() {
                     continue;
                 }
 
@@ -191,8 +191,8 @@ fn read_to_buffer(
     Ok(actual_count)
 }
 
-fn print_hexdump(from_pos: Option<u64>, buffer: &Vec<u8>) -> io::Result<()> {
-    if buffer.len() == 0 {
+fn print_hexdump(from_pos: Option<u64>, buffer: &[u8]) -> io::Result<()> {
+    if buffer.is_empty() {
         return Ok(());
     }
     let from_pos = from_pos.unwrap_or(0);
@@ -242,13 +242,13 @@ fn print_hexdump(from_pos: Option<u64>, buffer: &Vec<u8>) -> io::Result<()> {
         print_row_ascii(row, &mut output);
     }
 
-    if last_row.len() > 0 {
+    if !last_row.is_empty() {
         print_offset(rows.len(), &mut output);
 
         let (pairs, single) = last_row.as_chunks::<2>();
         print_pairs(pairs, &mut output);
 
-        if single.len() > 0 {
+        if !single.is_empty() {
             let mut single_hex = format!(" {:02x}", single[0]).into_bytes();
             output.append(&mut single_hex);
             output.push(b' '); // Fill space of missing half.
@@ -256,9 +256,7 @@ fn print_hexdump(from_pos: Option<u64>, buffer: &Vec<u8>) -> io::Result<()> {
         }
 
         let num_missing_pairs = (COLUMNS - last_row.len()) / 2;
-        for _ in 0..num_missing_pairs * 5 {
-            output.push(b' ');
-        }
+        output.extend(std::iter::repeat_n(b' ', num_missing_pairs * 5));
 
         print_row_ascii(last_row, &mut output);
     }
