@@ -34,7 +34,7 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
 
     loop {
         let pos = try_get_pos(&file);
-        let pos_str = format!("pos:{}", pos.map(|p| p.to_string()).unwrap_or("*".into()));
+        let pos_str = format!("pos:{}", pos.map_or("*".into(), |p| p.to_string()));
         let in_str = if read_count > 0 {
             format!("in:{read_count}, ")
         } else {
@@ -65,7 +65,7 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
         if buffer[buffer.len() - 1] == b'\n' {
             buffer.pop();
         } else {
-            eprintln!()
+            eprintln!();
         }
 
         let command = match parser::parse_input(&buffer) {
@@ -129,13 +129,13 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
 
                 match try_seek(&file, seek).and_then(|_| file.write_all(write_buf)) {
                     Err(e) => error(e),
-                    Ok(_) => write_count = write_buf.len(),
+                    Ok(()) => write_count = write_buf.len(),
                 }
             }
             Writeb { seek, bytes } => {
                 match try_seek(&file, seek).and_then(|_| file.write_all(&bytes)) {
                     Err(e) => error(e),
-                    Ok(_) => write_count = bytes.len(),
+                    Ok(()) => write_count = bytes.len(),
                 }
             }
         }
@@ -179,7 +179,7 @@ fn read_to_buffer(
     // Count arg is present.
 
     if count > buffer.capacity() {
-        buffer.try_reserve(count)?
+        buffer.try_reserve(count)?;
     }
 
     buffer.resize(count, 0);
@@ -192,11 +192,13 @@ fn read_to_buffer(
 }
 
 fn print_hexdump(from_pos: Option<u64>, buffer: &[u8]) -> io::Result<()> {
+    const COLUMNS: usize = 16; // Must be a multiple of 2.
+
     if buffer.is_empty() {
         return Ok(());
     }
+
     let from_pos = from_pos.unwrap_or(0);
-    const COLUMNS: usize = 16; // Must be a multiple of 2.
 
     let mut output = Vec::<u8>::with_capacity(4096);
 

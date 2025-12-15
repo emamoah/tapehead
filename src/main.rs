@@ -6,10 +6,10 @@ pub fn usage() {
 }
 
 fn exit_with_error<T>(e: impl Error) -> T {
-    let prefix = if !PROGNAME.is_empty() {
-        format!("{}: ", *PROGNAME)
-    } else {
+    let prefix = if PROGNAME.is_empty() {
         String::new()
+    } else {
+        format!("{}: ", *PROGNAME)
     };
     eprintln!("{prefix}error: {e}");
     process::exit(1);
@@ -31,16 +31,16 @@ fn try_open(file_path: &String) -> std::io::Result<(File, bool, bool)> {
     let (mut readable, mut writable) = (true, true);
     let mut file = File::options().read(true).write(true).open(file_path);
     if file.as_ref().is_err() {
-        file = File::options().write(true).open(file_path).and_then(|f| {
+        file = File::options().write(true).open(file_path);
+        if file.is_ok() {
             readable = false;
-            Ok(f)
-        });
+        }
     }
     if file.as_ref().is_err() {
-        file = File::options().read(true).open(file_path).and_then(|f| {
+        file = File::options().read(true).open(file_path);
+        if file.is_ok() {
             writable = false;
-            Ok(f)
-        });
+        }
     }
     if file.as_ref().is_err() {
         (readable, writable) = (false, false);

@@ -147,7 +147,7 @@ fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
     let seek_arg = String::from_utf8_lossy(word);
     if seek_arg.is_empty() {
         Err(strings::MISSING_SEEK_ARG)?;
-    };
+    }
 
     let first_char = seek_arg
         .chars()
