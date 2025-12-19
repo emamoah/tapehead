@@ -8,25 +8,26 @@ use std::{
 
 use crate::{repl::parser::Command, strings};
 
+#[derive(Debug)]
+pub enum FileMode {
+    RW,
+    RO,
+    WO,
+}
+
 fn prologue() {
     eprintln!("{}", *strings::PROLOGUE);
 }
 
-pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io::Result<()> {
+pub fn run(path: &String, mut file: File, file_mode: FileMode) -> io::Result<()> {
     use Command::*;
 
     let size = file.metadata()?.len();
     let unit = if size == 1 { "byte" } else { "bytes" };
-    let mode = match (readable, writable) {
-        (true, true) => "RW",
-        (true, false) => "RO",
-        (false, true) => "WO",
-        (false, false) => "??",
-    };
 
     prologue();
 
-    eprintln!("File: \"{path}\" ({size} {unit}) [{mode}]\n");
+    eprintln!("File: \"{path}\" ({size} {unit}) [{file_mode:?}]\n");
 
     let mut buffer = Vec::<u8>::with_capacity(8192);
     let mut read_count = 0usize;

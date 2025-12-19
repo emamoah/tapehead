@@ -1,5 +1,9 @@
 use std::{env::args, error::Error, fs::File, process};
-use tapehead::{self, PROGNAME, repl, strings::VERSION};
+use tapehead::{
+    self, PROGNAME,
+    repl::{self, FileMode},
+    strings::VERSION,
+};
 
 pub fn usage() {
     eprintln!("TapeHead v{}\n\nUsage: {} <file>", VERSION, *PROGNAME);
@@ -22,29 +26,26 @@ fn exit_with_usage<T>() -> T {
 
 fn main() {
     let file_path = args().nth(1).unwrap_or_else(exit_with_usage);
-    let (file, readable, writable) = try_open(&file_path).unwrap_or_else(exit_with_error);
+    let (file, file_mode) = try_open(&file_path).unwrap_or_else(exit_with_error);
 
-    repl::run(&file_path, file, readable, writable).unwrap_or_else(exit_with_error);
+    repl::run(&file_path, file, file_mode).unwrap_or_else(exit_with_error);
 }
 
-fn try_open(file_path: &String) -> std::io::Result<(File, bool, bool)> {
-    let (mut readable, mut writable) = (true, true);
+fn try_open(file_path: &String) -> std::io::Result<(File, FileMode)> {
+    let mut file_mode = FileMode::RW;
     let mut file = File::options().read(true).write(true).open(file_path);
     if file.as_ref().is_err() {
         file = File::options().write(true).open(file_path);
         if file.is_ok() {
-            readable = false;
+            file_mode = FileMode::WO;
         }
     }
     if file.as_ref().is_err() {
         file = File::options().read(true).open(file_path);
         if file.is_ok() {
-            writable = false;
+            file_mode = FileMode::RO;
         }
     }
-    if file.as_ref().is_err() {
-        (readable, writable) = (false, false);
-    }
 
-    file.map(|file| (file, readable, writable))
+    file.map(|file| (file, file_mode))
 }
