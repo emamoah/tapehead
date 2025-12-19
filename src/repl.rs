@@ -80,14 +80,14 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
             Nop => continue,
             Quit => break,
             Help => help(),
-            Seek(seek_from) => {
-                if let Err(e) = try_seek(&file, seek_from) {
+            Seek(cmd) => {
+                if let Err(e) = try_seek(&file, cmd.0) {
                     error(e);
                 }
             }
-            Read { seek, count } => {
-                match try_seek(&file, seek)
-                    .and_then(|_| read_to_buffer(&mut file, &mut buffer, count))
+            Read(cmd) => {
+                match try_seek(&file, cmd.seek)
+                    .and_then(|_| read_to_buffer(&mut file, &mut buffer, cmd.count))
                 {
                     Err(e) => {
                         error(e);
@@ -104,12 +104,12 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                     eprintln!();
                 }
             }
-            Readb { seek, count } => {
+            Readb(cmd) => {
                 let mut start_pos: Option<u64> = None;
 
-                match try_seek(&file, seek).and_then(|new_pos| {
+                match try_seek(&file, cmd.seek).and_then(|new_pos| {
                     start_pos = new_pos;
-                    read_to_buffer(&mut file, &mut buffer, count)
+                    read_to_buffer(&mut file, &mut buffer, cmd.count)
                 }) {
                     Err(e) => {
                         error(e);
@@ -121,23 +121,22 @@ pub fn run(path: &String, mut file: File, readable: bool, writable: bool) -> io:
                 // Print hexdump
                 print_hexdump(start_pos, &buffer).unwrap_or_else(error);
             }
-            Write { seek, index } => {
-                let write_buf = &buffer[index..];
+            Write(cmd) => {
+                let write_buf = &buffer[cmd.index..];
                 if write_buf.is_empty() {
                     continue;
                 }
 
-                match try_seek(&file, seek).and_then(|_| file.write_all(write_buf)) {
+                match try_seek(&file, cmd.seek).and_then(|_| file.write_all(write_buf)) {
                     Err(e) => error(e),
                     Ok(()) => write_count = write_buf.len(),
                 }
             }
-            Writeb { seek, bytes } => {
-                match try_seek(&file, seek).and_then(|_| file.write_all(&bytes)) {
-                    Err(e) => error(e),
-                    Ok(()) => write_count = bytes.len(),
-                }
-            }
+            Writeb(cmd) => match try_seek(&file, cmd.seek).and_then(|_| file.write_all(&cmd.bytes))
+            {
+                Err(e) => error(e),
+                Ok(()) => write_count = cmd.bytes.len(),
+            },
         }
     }
 

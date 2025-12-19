@@ -2,27 +2,42 @@ use std::{error::Error, io::SeekFrom};
 
 use crate::strings;
 
-type ParseResult = Result<Command, Box<dyn Error>>;
+type ParseResult<T> = Result<T, Box<dyn Error>>;
+
+#[derive(Debug, PartialEq)]
+pub struct ReadCommand {
+    pub seek: SeekFrom,
+    pub count: Option<usize>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ReadbCommand {
+    pub seek: SeekFrom,
+    pub count: Option<usize>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct WriteCommand {
+    pub seek: SeekFrom,
+    pub index: usize,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct WritebCommand {
+    pub seek: SeekFrom,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SeekCommand(pub SeekFrom);
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Read {
-        seek: SeekFrom,
-        count: Option<usize>,
-    },
-    Readb {
-        seek: SeekFrom,
-        count: Option<usize>,
-    },
-    Write {
-        seek: SeekFrom,
-        index: usize,
-    },
-    Writeb {
-        seek: SeekFrom,
-        bytes: Vec<u8>,
-    },
-    Seek(SeekFrom),
+    Read(ReadCommand),
+    Readb(ReadbCommand),
+    Write(WriteCommand),
+    Writeb(WritebCommand),
+    Seek(SeekCommand),
     Help,
     Quit,
     Nop,
@@ -44,7 +59,7 @@ const OP_S: &[u8] = b"s";
 const OP_H: &[u8] = b"h";
 const OP_Q: &[u8] = b"q";
 
-pub fn parse_input(input: &[u8]) -> ParseResult {
+pub fn parse_input(input: &[u8]) -> ParseResult<Command> {
     // Is there a better way? i.e. <&str>::split_whitespace, but for &[u8] ?
     let mut input_words = input
         .split(u8::is_ascii_whitespace)
@@ -54,19 +69,21 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
         return Ok(Command::Nop);
     };
 
-    match op.to_ascii_lowercase().as_slice() {
-        OP_READ | OP_R => parse_read_command(input_words),
-        OP_READB | OP_RB => parse_readb_command(input_words),
-        OP_WRITE | OP_W => parse_write_command(input_words, input),
-        OP_WRITEB | OP_WB => parse_writeb_command(input_words),
-        OP_SEEK | OP_S => parse_seek_command(input_words),
-        OP_HELP | OP_H => Ok(Command::Help),
-        OP_QUIT | OP_Q => Ok(Command::Quit),
-        _ => Err(strings::UNRECOGNIZED_COMMAND)?,
-    }
+    let command = match op.to_ascii_lowercase().as_slice() {
+        OP_READ | OP_R => Command::Read(parse_read_command(input_words)?),
+        OP_READB | OP_RB => Command::Readb(parse_readb_command(input_words)?),
+        OP_WRITE | OP_W => Command::Write(parse_write_command(input_words, input)?),
+        OP_WRITEB | OP_WB => Command::Writeb(parse_writeb_command(input_words)?),
+        OP_SEEK | OP_S => Command::Seek(parse_seek_command(input_words)?),
+        OP_HELP | OP_H => Command::Help,
+        OP_QUIT | OP_Q => Command::Quit,
+        _ => return Err(strings::UNRECOGNIZED_COMMAND)?,
+    };
+
+    Ok(command)
 }
 
-fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult<ReadCommand> {
     let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
@@ -80,20 +97,20 @@ fn parse_read_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
             Some(num)
         }
     };
-    Ok(Command::Read { seek, count })
+
+    Ok(ReadCommand { seek, count })
 }
 
-fn parse_readb_command<'a>(args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
-    let Command::Read { seek, count } = parse_read_command(args)? else {
-        panic!("{}", strings::INVALID_STATE_READ_RETURNED_WRONG_TYPE);
-    };
-    Ok(Command::Readb { seek, count })
+fn parse_readb_command<'a>(args: impl Iterator<Item = &'a [u8]>) -> ParseResult<ReadbCommand> {
+    let ReadCommand { seek, count } = parse_read_command(args)?;
+
+    Ok(ReadbCommand { seek, count })
 }
 
 fn parse_write_command<'a>(
     mut args: impl Iterator<Item = &'a [u8]>,
     command_line: &[u8],
-) -> ParseResult {
+) -> ParseResult<WriteCommand> {
     let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
@@ -118,13 +135,15 @@ fn parse_write_command<'a>(
         None => command_line.len(),
     };
 
-    Ok(Command::Write {
+    Ok(WriteCommand {
         seek,
         index: write_buf_start,
     })
 }
 
-fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+fn parse_writeb_command<'a>(
+    mut args: impl Iterator<Item = &'a [u8]>,
+) -> ParseResult<WritebCommand> {
     let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
 
@@ -138,13 +157,14 @@ fn parse_writeb_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseRe
         bytes.push(byte);
     }
 
-    Ok(Command::Writeb { seek, bytes })
+    Ok(WritebCommand { seek, bytes })
 }
 
-fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult {
+fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResult<SeekCommand> {
     let seek_arg = args.next().ok_or(strings::MISSING_SEEK_ARG)?;
     let seek = parse_seek_arg(seek_arg)?;
-    Ok(Command::Seek(seek))
+
+    Ok(SeekCommand(seek))
 }
 
 fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
@@ -193,7 +213,7 @@ mod tests {
 
     #[test]
     fn invalid_input_returns_err() {
-        let inputs: &[&[u8]] = &[b"\n", b" ", OP_READ, OP_WRITE, OP_SEEK];
+        let inputs: &[&[u8]] = &[b"gibberish", b" . ", OP_READ, OP_WRITE, OP_SEEK];
 
         for input in inputs {
             assert!(parse_input(input).is_err());
@@ -226,10 +246,10 @@ mod tests {
             let cmd = parse_input(input.0).unwrap();
             assert_eq!(
                 cmd,
-                Write {
+                Write(WriteCommand {
                     seek: SeekFrom::Current(0),
                     index: input.1
-                }
+                })
             );
         }
     }
@@ -264,14 +284,14 @@ mod tests {
         let from_start_0 = parse_input(b"seek 0").unwrap();
         let from_start_1 = parse_input(b"seek 1").unwrap();
 
-        assert_eq!(dot, Seek(SeekFrom::Current(0)));
-        assert_eq!(forwards, Seek(SeekFrom::Current(0)));
-        assert_eq!(backwards, Seek(SeekFrom::Current(0)));
-        assert_eq!(from_end, Seek(SeekFrom::End(0)));
-        assert_eq!(from_end_0, Seek(SeekFrom::End(0)));
-        assert_eq!(from_end_1, Seek(SeekFrom::End(-1)));
-        assert_eq!(from_start_0, Seek(SeekFrom::Start(0)));
-        assert_eq!(from_start_1, Seek(SeekFrom::Start(1)));
+        assert_eq!(dot, Seek(SeekCommand(SeekFrom::Current(0))));
+        assert_eq!(forwards, Seek(SeekCommand(SeekFrom::Current(0))));
+        assert_eq!(backwards, Seek(SeekCommand(SeekFrom::Current(0))));
+        assert_eq!(from_end, Seek(SeekCommand(SeekFrom::End(0))));
+        assert_eq!(from_end_0, Seek(SeekCommand(SeekFrom::End(0))));
+        assert_eq!(from_end_1, Seek(SeekCommand(SeekFrom::End(-1))));
+        assert_eq!(from_start_0, Seek(SeekCommand(SeekFrom::Start(0))));
+        assert_eq!(from_start_1, Seek(SeekCommand(SeekFrom::Start(1))));
     }
 
     #[test]
@@ -282,10 +302,10 @@ mod tests {
 
         assert_eq!(
             cmd,
-            Command::Writeb {
+            Writeb(WritebCommand {
                 seek: SeekFrom::Current(0),
                 bytes: vec![0, 0xff, 0x40]
-            }
+            })
         )
     }
 
