@@ -45,16 +45,14 @@ const OP_H: &[u8] = b"h";
 const OP_Q: &[u8] = b"q";
 
 pub fn parse_input(input: &[u8]) -> ParseResult {
-    if input.is_empty() {
-        return Ok(Command::Nop);
-    }
-
     // Is there a better way? i.e. <&str>::split_whitespace, but for &[u8] ?
     let mut input_words = input
         .split(u8::is_ascii_whitespace)
         .filter(|chunk| !chunk.is_empty());
 
-    let op = input_words.next().ok_or(strings::WEIRD_COMMAND_NOT_FOUND)?;
+    let Some(op) = input_words.next() else {
+        return Ok(Command::Nop);
+    };
 
     match op.to_ascii_lowercase().as_slice() {
         OP_READ | OP_R => parse_read_command(input_words),
@@ -151,14 +149,11 @@ fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
 
 fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
     let seek_arg = String::from_utf8_lossy(word);
-    if seek_arg.is_empty() {
-        Err(strings::MISSING_SEEK_ARG)?;
-    }
 
-    let first_char = seek_arg
-        .chars()
-        .next()
-        .ok_or(strings::WEIRD_SEEK_ARG_NOT_FOUND)?;
+    let Some(first_char) = seek_arg.chars().next() else {
+        return Err(strings::MISSING_SEEK_ARG)?;
+    };
+
     match first_char {
         '.' if seek_arg.len() == 1 => Ok(SeekFrom::Current(0)),
         '<' if seek_arg.len() == 1 => Ok(SeekFrom::End(0)),
