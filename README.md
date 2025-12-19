@@ -84,25 +84,25 @@ The prompt contains a combination of the following segments:
 
 The following are the supported commands in the REPL, also accessible through the `help` command.
 
-- `read <seek> [count]`
+- `r[ead] <seek> [count]`
   - Read `count` number of bytes from the position specified by `seek`. If `count` is omitted, read to the end of the file.
 
-- `readb <seek> [count]`
+- `r[ead]b <seek> [count]`
   - Same as `read`, but prints the contents as a hex dump. Useful for examining raw bytes.
 
-- `write <seek> <contents>`
+- `w[rite] <seek> <contents>`
   - Write the given text in `contents` to the file from the position specified by `seek`. `contents` can contain whitespace only after the first non-whitespace character.
 
-- `writeb <seek> <hex bytes>`
+- `w[rite]b <seek> <hex bytes>`
   - Write the given raw bytes to the file. Bytes are written as space-separated hex values and are case-insensitive. e.g., `6C 6f 6C`.
 
-- `seek <seek>`
+- `s[eek] <seek>`
   - Move the file pointer to the position specified by `seek`.
 
-- `help`
+- `h[elp]`
   - View this help menu.
 
-- `quit`
+- `q[uit]`
   - Quit the program.
 
 #### Seek

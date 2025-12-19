@@ -28,15 +28,21 @@ pub enum Command {
     Nop,
 }
 
-impl Command {
-    const OP_READ: &[u8] = b"read";
-    const OP_READB: &[u8] = b"readb";
-    const OP_WRITE: &[u8] = b"write";
-    const OP_WRITEB: &[u8] = b"writeb";
-    const OP_SEEK: &[u8] = b"seek";
-    const OP_HELP: &[u8] = b"help";
-    const OP_QUIT: &[u8] = b"quit";
-}
+const OP_READ: &[u8] = b"read";
+const OP_READB: &[u8] = b"readb";
+const OP_WRITE: &[u8] = b"write";
+const OP_WRITEB: &[u8] = b"writeb";
+const OP_SEEK: &[u8] = b"seek";
+const OP_HELP: &[u8] = b"help";
+const OP_QUIT: &[u8] = b"quit";
+// Short forms
+const OP_R: &[u8] = b"r";
+const OP_RB: &[u8] = b"rb";
+const OP_W: &[u8] = b"w";
+const OP_WB: &[u8] = b"wb";
+const OP_S: &[u8] = b"s";
+const OP_H: &[u8] = b"h";
+const OP_Q: &[u8] = b"q";
 
 pub fn parse_input(input: &[u8]) -> ParseResult {
     if input.is_empty() {
@@ -51,13 +57,13 @@ pub fn parse_input(input: &[u8]) -> ParseResult {
     let op = input_words.next().ok_or(strings::WEIRD_COMMAND_NOT_FOUND)?;
 
     match op.to_ascii_lowercase().as_slice() {
-        Command::OP_READ => parse_read_command(input_words),
-        Command::OP_READB => parse_readb_command(input_words),
-        Command::OP_WRITE => parse_write_command(input_words, input),
-        Command::OP_WRITEB => parse_writeb_command(input_words),
-        Command::OP_SEEK => parse_seek_command(input_words),
-        Command::OP_HELP => Ok(Command::Help),
-        Command::OP_QUIT => Ok(Command::Quit),
+        OP_READ | OP_R => parse_read_command(input_words),
+        OP_READB | OP_RB => parse_readb_command(input_words),
+        OP_WRITE | OP_W => parse_write_command(input_words, input),
+        OP_WRITEB | OP_WB => parse_writeb_command(input_words),
+        OP_SEEK | OP_S => parse_seek_command(input_words),
+        OP_HELP | OP_H => Ok(Command::Help),
+        OP_QUIT | OP_Q => Ok(Command::Quit),
         _ => Err(strings::UNRECOGNIZED_COMMAND)?,
     }
 }
@@ -192,13 +198,7 @@ mod tests {
 
     #[test]
     fn invalid_input_returns_err() {
-        let inputs: &[&[u8]] = &[
-            b"\n",
-            b" ",
-            Command::OP_READ,
-            Command::OP_WRITE,
-            Command::OP_SEEK,
-        ];
+        let inputs: &[&[u8]] = &[b"\n", b" ", OP_READ, OP_WRITE, OP_SEEK];
 
         for input in inputs {
             assert!(parse_input(input).is_err());
@@ -221,6 +221,7 @@ mod tests {
     fn write_returns_correct_byte_position() {
         let inputs: &[(&[u8], usize)] = &[
             (b" \twrite \r. \x0c  x \n  ", 14),
+            (b" \tw \r. \x0c  x \n  ", 10),
             (b"write . \t  ", 11),
             (b"write .\n", 8),
             (b"write .", 7),
