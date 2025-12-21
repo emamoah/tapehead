@@ -168,34 +168,30 @@ fn parse_seek_command<'a>(mut args: impl Iterator<Item = &'a [u8]>) -> ParseResu
 }
 
 fn parse_seek_arg(word: &[u8]) -> Result<SeekFrom, Box<dyn Error>> {
-    let seek_arg = String::from_utf8_lossy(word);
-
-    let Some(first_char) = seek_arg.chars().next() else {
-        return Err(strings::MISSING_SEEK_ARG)?;
-    };
-
-    match first_char {
-        '.' if seek_arg.len() == 1 => Ok(SeekFrom::Current(0)),
-        '<' if seek_arg.len() == 1 => Ok(SeekFrom::End(0)),
-        '+' | '-' => {
-            let num = seek_arg
+    match word {
+        [] => Err(strings::MISSING_SEEK_ARG)?,
+        [b'.'] => Ok(SeekFrom::Current(0)),
+        num @ [b'+' | b'-', ..] => {
+            let num = String::from_utf8_lossy(num)
                 .parse()
                 .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
             Ok(SeekFrom::Current(num))
         }
-        '0'..='9' if seek_arg.ends_with('<') => {
-            let num: i64 = seek_arg[..seek_arg.len() - 1]
+        [num @ .., b'<'] => match num {
+            [] => Ok(SeekFrom::End(0)),
+            _ => {
+                let num: i64 = String::from_utf8_lossy(num)
+                    .parse()
+                    .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
+                Ok(SeekFrom::End(0 - num))
+            }
+        },
+        num @ _ => {
+            let num = String::from_utf8_lossy(num)
                 .parse()
-                .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
-            Ok(SeekFrom::End(0 - num))
-        }
-        '0'..='9' => {
-            let num = seek_arg
-                .parse()
-                .map_err(|_| strings::INVALID_DIGIT_IN_SEEK_ARG)?;
+                .map_err(|_| strings::INVALID_SEEK_ARG)?;
             Ok(SeekFrom::Start(num))
         }
-        _ => Err(strings::INVALID_SEEK_ARG)?,
     }
 }
 
