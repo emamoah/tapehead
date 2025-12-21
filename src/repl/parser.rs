@@ -212,7 +212,13 @@ mod tests {
         let inputs: &[&[u8]] = &[b"gibberish", b" . ", OP_READ, OP_WRITE, OP_SEEK];
 
         for input in inputs {
-            assert!(parse_input(input).is_err());
+            let parse_result = parse_input(input);
+            assert!(
+                parse_result.is_err(),
+                "'{}' is not Err but {:?}",
+                String::from_utf8_lossy(input),
+                parse_result
+            );
         }
     }
 
@@ -224,7 +230,13 @@ mod tests {
         ];
 
         for input in inputs {
-            assert!(parse_input(input).is_ok());
+            let parse_result = parse_input(input);
+            assert!(
+                parse_result.is_ok(),
+                "'{}' is not Ok but {:?}",
+                String::from_utf8_lossy(input),
+                parse_result
+            );
         }
     }
 
@@ -265,7 +277,13 @@ mod tests {
         ];
 
         for input in inputs {
-            assert!(parse_input(input).is_err());
+            let parse_result = parse_input(input);
+            assert!(
+                parse_result.is_err(),
+                "'{}' is not Err but {:?}",
+                String::from_utf8_lossy(input),
+                parse_result
+            );
         }
     }
 
@@ -310,7 +328,13 @@ mod tests {
         let inputs: &[&[u8]] = &[b"writeb . g", b"writeb . 100", b"writeb . 40 41 100"];
 
         for input in inputs {
-            assert!(parse_input(input).is_err());
+            let parse_result = parse_input(input);
+            assert!(
+                parse_result.is_err(),
+                "'{}' is not Err but {:?}",
+                String::from_utf8_lossy(input),
+                parse_result
+            );
         }
     }
 }
